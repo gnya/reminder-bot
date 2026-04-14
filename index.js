@@ -4,6 +4,7 @@ const {
   GatewayIntentBits,
   ActivityType,
   Events,
+  ApplicationCommandOptionType,
 } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
@@ -35,6 +36,13 @@ function saveReminders(reminders) {
   console.log(`${JSON.stringify(reminders)} を登録しました。`);
 }
 
+// アクティビティの表示を更新する関数
+function updateActivity(currentData) {
+  client.user.setActivity(`${currentData.length}件の予定をリマインド中`, {
+    type: ActivityType.Watching,
+  });
+}
+
 function add(interaction) {
   const currentData = loadReminders();
   const newEntry = {
@@ -49,6 +57,12 @@ function add(interaction) {
   interaction.reply(
     `データを追加しました。現在の件数: ${currentData.length}件`,
   );
+
+  updateActivity(currentData);
+}
+
+function remove(interaction) {
+  updateActivity(currentData);
 }
 
 function list(interaction) {
@@ -68,16 +82,15 @@ function help(interaction) {
 
 // Botが起動したときに実行される処理
 client.once(Events.ClientReady, async () => {
-  client.user.setActivity("かにさん", { type: ActivityType.Watching });
-
   const channelId = process.env.TARGET_CHANNEL_ID;
+
   if (!channelId) {
     console.error("エラー: TARGET_CHANNEL_ID が設定されていません。");
     return;
   }
 
   try {
-    // 環境変数からチャンネルIDを取得
+    // チャンネルIDからチャンネルを取得
     const channel = await client.channels.fetch(channelId);
     if (!channel) {
       console.error(
@@ -88,6 +101,57 @@ client.once(Events.ClientReady, async () => {
   } catch (error) {
     console.error("起動時にエラーが発生しました:", error);
   }
+
+  // コマンドを登録する
+  client.application.commands.set(
+    [
+      {
+        name: "add",
+        description: "予定を追加します",
+        options: [
+          {
+            name: "name",
+            description: "予定の名前",
+            type: ApplicationCommandOptionType.String,
+            required: true,
+          },
+          {
+            name: "date",
+            description: "予定の日付",
+            type: ApplicationCommandOptionType.String,
+            required: true,
+          },
+        ],
+      },
+      {
+        name: "remove",
+        description: "予定を削除します",
+        options: [
+          {
+            name: "name",
+            description: "予定の名前",
+            type: ApplicationCommandOptionType.String,
+            required: true,
+          },
+        ],
+      },
+      {
+        name: "update",
+        description: "予定を更新します",
+      },
+      {
+        name: "list",
+        description: "予定の一覧を表示します",
+      },
+      {
+        name: "help",
+        description: "このBotのヘルプを表示します",
+      },
+    ],
+    process.env.DISCORD_GUILD_ID,
+  );
+
+  updateActivity(loadReminders());
 });
 
 // コマンドを受け取ったときに実行される処理
