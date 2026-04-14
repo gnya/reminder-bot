@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, ActivityType, Events } = require("discord.js");
 
 const client = new Client({
     intents: [
@@ -11,6 +11,7 @@ const client = new Client({
 
 // Botが起動したときに実行される処理
 client.once(Events.ClientReady, (c) => {
+    client.user.setActivity('かにさん', {type: ActivityType.Watching});
 });
 
 // メッセージを受け取ったときに実行される処理
