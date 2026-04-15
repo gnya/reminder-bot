@@ -54,16 +54,29 @@ function updateActivity(reminders) {
   });
 }
 
+function sendMessage(context, sendFunc, messageArray) {
+  sendFunc.bind(context)({
+    embeds: [{ color: 0x2ca4e6, description: messageArray.join("\n") }],
+  });
+}
+
+function sendError(context, sendFunc, messageArray) {
+  sendFunc.bind(context)({
+    embeds: [{ color: 0xe65011, description: messageArray.join("\n") }],
+    ephemeral: true, // エラー時は自分にだけ見えるようにすると親切
+  });
+}
+
 function add(interaction) {
   const name = interaction.options.getString("name");
   const dateInput = interaction.options.getString("date"); // 文字列として取得
   const parsedDate = chrono.ja.parseDate(dateInput);
 
   if (!parsedDate) {
-    interaction.reply({
-      content: `日付を読み取れませんでした: 「${dateInput}」`,
-      ephemeral: true,
-    });
+    sendError(interaction, interaction.reply, [
+      `日付を読み取れませんでした: 「${dateInput}」`,
+    ]);
+
     return;
   }
 
@@ -71,10 +84,10 @@ function add(interaction) {
 
   // 未来チェック
   if (dateTimestamp <= Date.now()) {
-    interaction.reply({
-      content: `過去の日付は登録できません。\n解析結果: \`${parsedDate.toLocaleString("ja-JP")}\``,
-      ephemeral: true,
-    });
+    sendError(interaction, interaction.reply, [
+      "過去の日付は登録できません。",
+      `解析結果: \`${parsedDate.toLocaleString("ja-JP")}\``,
+    ]);
     return;
   }
 
@@ -93,9 +106,11 @@ function add(interaction) {
     minute: "2-digit",
   });
 
-  interaction.reply(
-    `予定を追加しました！\n**内容:** ${name}\n**日時:** \`${formattedDate}\``,
-  );
+  sendMessage(interaction, interaction.reply, [
+    `予定を追加しました！`,
+    `**内容:** ${name}`,
+    `**日時:** \`${formattedDate}\``,
+  ]);
   updateActivity(reminders);
 }
 
@@ -104,9 +119,9 @@ function remove(interaction) {
   const id = interaction.options.getNumber("id");
 
   if ((name == null && id == null) || (name != null && id != null)) {
-    interaction.reply(
+    sendError(interaction, interaction.reply, [
       "予定の削除に失敗しました: 名前かIDのどちらかを指定してください",
-    );
+    ]);
 
     return;
   }
@@ -115,9 +130,9 @@ function remove(interaction) {
   const index = reminders.findIndex((r) => r.name === name || r.id === id);
 
   if (index < 0) {
-    interaction.reply(
+    sendError(interaction, interaction.reply, [
       "予定の削除に失敗しました: 指定された予定が存在しませんでした",
-    );
+    ]);
 
     return;
   }
@@ -126,14 +141,16 @@ function remove(interaction) {
 
   saveJSON(reminders, REMINDERS_JSON_PATH);
 
-  interaction.reply(`予定を削除しました。現在の件数: ${reminders.length}件`);
+  sendMessage(interaction, interaction.reply, [
+    `予定を削除しました。現在の件数: ${reminders.length}件`,
+  ]);
   updateActivity(reminders);
 }
 
 function clear(interaction) {
   saveJSON([], REMINDERS_JSON_PATH);
 
-  interaction.reply("すべての予定を削除しました。");
+  sendMessage(interaction, interaction.reply, ["すべての予定を削除しました。"]);
   updateActivity([]);
 }
 
@@ -141,7 +158,9 @@ function list(interaction) {
   const data = loadJSON(REMINDERS_JSON_PATH);
 
   if (data.length === 0) {
-    interaction.reply("登録されている予定はありません。");
+    sendMessage(interaction, interaction.reply, [
+      "登録されている予定はありません。",
+    ]);
   }
 
   const listText = data
@@ -151,11 +170,16 @@ function list(interaction) {
     })
     .join("\n");
 
-  interaction.reply(`**現在の予定リスト**\n\`\`\`\n${listText}\n\`\`\``);
+  sendMessage(interaction, interaction.reply, [
+    "**現在の予定リスト**",
+    `\`\`\`\n${listText}\n\`\`\``,
+  ]);
 }
 
 function help(interaction) {
-  interaction.reply("コマンド一覧: /add, /list, /remove, /clear, /help");
+  sendMessage(interaction, interaction.reply, [
+    "コマンド一覧: /add, /list, /remove, /clear, /help",
+  ]);
 }
 
 // Botが起動したときに実行される処理
@@ -192,30 +216,33 @@ client.once(Events.ClientReady, async () => {
   // 1分ごとにコールバックを実行する
   cron.schedule("* * * * *", () => {
     const reminders = loadJSON(REMINDERS_JSON_PATH);
-    const now = new Date();
+    const now = Date.now();
 
     for (const reminder of reminders) {
-      const delta = Math.round((reminder.date - now.getTime()) / (60 * 1000));
+      const delta = Math.round((reminder.date - now) / (60 * 1000));
 
       // 既に時刻を過ぎている場合は無視する
       if (delta < 0) {
         continue;
       }
 
-      // テスト用コード
-      // console.log(`test: ${reminder.name} ${delta}`);
-
       if (delta === 0) {
         // 時間になったら通知
-        channel.send(`${reminder.name}: 時間になりました！`);
+        sendMessage(channel, channel.send, [
+          `${reminder.name}: 時間になりました！`,
+        ]);
       } else if (delta >= 1440 && delta % 1440 === 0) {
         // 24時間前までは1日おきに通知
         const days = Math.floor(delta / 1440);
-        channel.send(`${reminder.name}: 残り${days}日です。`);
+        sendMessage(channel, channel.send, [
+          `${reminder.name}: 残り${days}日です。`,
+        ]);
       } else if (delta < 1440 && delta % 720 === 0) {
         // 24時間を切ったら12時間おきに通知
         const hours = Math.floor(delta / 60);
-        channel.send(`${reminder.name}: 残り${hours}時間です。`);
+        sendMessage(channel, channel.send, [
+          `${reminder.name}: 残り${hours}時間です。`,
+        ]);
       }
     }
   });
