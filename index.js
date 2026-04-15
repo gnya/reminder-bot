@@ -139,10 +139,6 @@ function clear(interaction) {
   updateActivity([]);
 }
 
-function update(interaction) {
-  // TODO 実装予定
-}
-
 function list(interaction) {
   const data = loadJSON(REMINDERS_JSON_PATH);
 
@@ -161,7 +157,7 @@ function list(interaction) {
 }
 
 function help(interaction) {
-  interaction.reply("コマンド一覧: /add, /list, /remove, /update");
+  interaction.reply("コマンド一覧: /add, /list, /remove, /clear, /help");
 }
 
 // Botが起動したときに実行される処理
@@ -239,9 +235,6 @@ client.on(Events.InteractionCreate, (interaction) => {
       break;
     case "clear":
       clear(interaction);
-      break;
-    case "update":
-      update(interaction);
       break;
     case "list":
       list(interaction);
