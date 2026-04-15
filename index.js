@@ -57,14 +57,12 @@ function updateActivity(reminders) {
 function add(interaction) {
   const name = interaction.options.getString("name");
   const dateInput = interaction.options.getString("date"); // 文字列として取得
-
-  // chrono.ja を使用して日本語を解析
   const parsedDate = chrono.ja.parseDate(dateInput);
 
   if (!parsedDate) {
     interaction.reply({
-      content: `日付を読み取れませんでした: 「${dateInput}」\n(例: 明日の20時, 4/25 10:30, 来週の月曜日 など)`,
-      ephemeral: true, // エラー時は自分にだけ見えるようにすると親切
+      content: `日付を読み取れませんでした: 「${dateInput}」`,
+      ephemeral: true,
     });
     return;
   }
