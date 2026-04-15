@@ -9,6 +9,7 @@ const {
 const fs = require("fs");
 const { type } = require("os");
 const path = require("path");
+const cron = require("node-cron");
 
 const COMMANDS_JSON_PATH = path.join(__dirname, "commands.json");
 const REMINDERS_JSON_PATH = path.join(__dirname, "reminders.json");
@@ -137,39 +138,60 @@ function help(interaction) {
 
 // Botが起動したときに実行される処理
 client.once(Events.ClientReady, async () => {
-  const channelId = process.env.TARGET_CHANNEL_ID;
-
-  // TODO 他の環境変数についても存在確認をする？
-  if (!channelId) {
-    console.error("エラー: TARGET_CHANNEL_ID が設定されていません。");
-
-    return;
-  }
-
-  try {
-    // チャンネルIDからチャンネルを取得
-    const channel = await client.channels.fetch(channelId);
-
-    if (!channel) {
-      console.error(
-        "エラー: 指定されたチャンネルが見つかりません。Botがそのチャンネルを見る権限があるか確認してください。",
-      );
+  // 必要な環境変数の存在確認をする
+  for (const prop of ["DISCORD_GUILD_ID", "TARGET_CHANNEL_ID"]) {
+    if (!(prop in process.env)) {
+      console.error(`環境変数 ${prop} が設定されていません。`);
 
       return;
     }
-
-    // TODO channelを使ってなにかする
-  } catch (err) {
-    console.error("起動時にエラーが発生しました:", err);
   }
 
   // コマンドを登録する
-  client.application.commands.set(
+  await client.application.commands.set(
     loadJSON(COMMANDS_JSON_PATH),
     process.env.DISCORD_GUILD_ID,
   );
 
+  // サーバーアクティビティを更新する
   updateActivity(loadJSON(REMINDERS_JSON_PATH));
+
+  // チャンネルIDからチャンネルを取得
+  const channel = await client.channels.fetch(process.env.TARGET_CHANNEL_ID);
+
+  if (!channel) {
+    console.error(
+      "エラー: 指定されたチャンネルが見つかりません。Botがそのチャンネルを見る権限があるか確認してください。",
+    );
+
+    return;
+  }
+
+  // 1分ごとにコールバックを実行する
+  cron.schedule("* * * * *", () => {
+    const reminders = loadJSON(REMINDERS_JSON_PATH);
+    const now = new Date();
+
+    // TODO 24時間前までは1日おきに通知
+    // TODO 24時間を切ったら12時間おきに通知
+    for (reminder of reminders) {
+      const delta = Math.round((reminder.date - now.getTime()) / (60 * 1000));
+
+      console.log(`test: ${reminder.name} ${delta}`);
+
+      // 既に時刻を過ぎている場合は無視する
+      if (delta < 0) {
+        return;
+      }
+
+      // ひとまず10分刻みで通知するようにする
+      if (delta === 0) {
+        channel.send(`${reminder.name}: 時間になりました！`);
+      } else if (delta % 10 === 0) {
+        channel.send(`${reminder.name}: 残り${delta}分です。`);
+      }
+    }
+  });
 });
 
 // コマンドを受け取ったときに実行される処理
