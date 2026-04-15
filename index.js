@@ -10,6 +10,7 @@ const fs = require("fs");
 const { type } = require("os");
 const path = require("path");
 const cron = require("node-cron");
+const chrono = require("chrono-node");
 
 const COMMANDS_JSON_PATH = path.join(__dirname, "commands.json");
 const REMINDERS_JSON_PATH = path.join(__dirname, "reminders.json");
@@ -55,26 +56,48 @@ function updateActivity(reminders) {
 
 function add(interaction) {
   const name = interaction.options.getString("name");
-  const date = Date.parse(interaction.options.getString("date"));
+  const dateInput = interaction.options.getString("date"); // 文字列として取得
 
-  if (isNaN(date)) {
-    interaction.reply("予定の追加に失敗しました: 入力された日付が無効です");
+  // chrono.ja を使用して日本語を解析
+  const parsedDate = chrono.ja.parseDate(dateInput);
 
+  if (!parsedDate) {
+    interaction.reply({
+      content: `日付を読み取れませんでした: 「${dateInput}」\n(例: 明日の20時, 4/25 10:30, 来週の月曜日 など)`,
+      ephemeral: true, // エラー時は自分にだけ見えるようにすると親切
+    });
     return;
-  } else if (date <= Date.now()) {
-    interaction.reply("予定の追加に失敗しました: 未来の日付を入力してください");
+  }
 
+  const dateTimestamp = parsedDate.getTime();
+
+  // 未来チェック
+  if (dateTimestamp <= Date.now()) {
+    interaction.reply({
+      content: `過去の日付は登録できません。\n解析結果: \`${parsedDate.toLocaleString("ja-JP")}\``,
+      ephemeral: true,
+    });
     return;
   }
 
   const reminders = loadJSON(REMINDERS_JSON_PATH);
   const id = (reminders[reminders.length - 1]?.id || 0) + 1;
 
-  reminders.push({ id: id, name: name, date: date });
-
+  reminders.push({ id: id, name: name, date: dateTimestamp });
   saveJSON(reminders, REMINDERS_JSON_PATH);
 
-  interaction.reply(`予定を追加しました。現在の件数: ${reminders.length}件`);
+  // 表示用にフォーマット
+  const formattedDate = parsedDate.toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  interaction.reply(
+    `予定を追加しました！\n**内容:** ${name}\n**日時:** \`${formattedDate}\``,
+  );
   updateActivity(reminders);
 }
 
@@ -127,9 +150,14 @@ function list(interaction) {
     interaction.reply("登録されている予定はありません。");
   }
 
-  interaction.reply(
-    `現在のリスト:\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``,
-  );
+  const listText = data
+    .map((r) => {
+      const d = new Date(r.date).toLocaleString("ja-JP");
+      return `ID: ${r.id} | ${d} | ${r.name}`;
+    })
+    .join("\n");
+
+  interaction.reply(`**現在の予定リスト**\n\`\`\`\n${listText}\n\`\`\``);
 }
 
 function help(interaction) {
