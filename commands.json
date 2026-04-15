@@ -40,10 +40,6 @@
     "description": "すべての予定を削除します"
   },
   {
-    "name": "update",
-    "description": "予定を更新します"
-  },
-  {
     "name": "list",
     "description": "予定の一覧を表示します"
   },

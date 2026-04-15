@@ -74,7 +74,7 @@ function add(interaction) {
 
   if (!parsedDate) {
     sendError(interaction, interaction.reply, [
-      `日付を読み取れませんでした: 「${dateInput}」`,
+      `🚨⠀日付を読み取れませんでした: 「${dateInput}」`,
     ]);
 
     return;
@@ -85,8 +85,8 @@ function add(interaction) {
   // 未来チェック
   if (dateTimestamp <= Date.now()) {
     sendError(interaction, interaction.reply, [
-      "過去の日付は登録できません。",
-      `解析結果: \`${parsedDate.toLocaleString("ja-JP")}\``,
+      "🚨⠀過去の日付は登録できません。",
+      `⠀⠀⠀解析結果: \`${parsedDate.toLocaleString("ja-JP")}\``,
     ]);
     return;
   }
@@ -107,9 +107,9 @@ function add(interaction) {
   });
 
   sendMessage(interaction, interaction.reply, [
-    `予定を追加しました！`,
-    `**内容:** ${name}`,
-    `**日時:** \`${formattedDate}\``,
+    `✅⠀予定を追加しました！`,
+    `⠀⠀⠀**内容:** ${name}`,
+    `⠀⠀⠀**日時:** \`${formattedDate}\``,
   ]);
   updateActivity(reminders);
 }
@@ -120,7 +120,8 @@ function remove(interaction) {
 
   if ((name == null && id == null) || (name != null && id != null)) {
     sendError(interaction, interaction.reply, [
-      "予定の削除に失敗しました: 名前かIDのどちらかを指定してください",
+      "🚨⠀予定の削除に失敗しました:",
+      "⠀⠀⠀名前かIDのどちらかを指定してください",
     ]);
 
     return;
@@ -131,7 +132,8 @@ function remove(interaction) {
 
   if (index < 0) {
     sendError(interaction, interaction.reply, [
-      "予定の削除に失敗しました: 指定された予定が存在しませんでした",
+      "🚨⠀予定の削除に失敗しました:",
+      "⠀⠀⠀指定された予定が存在しませんでした",
     ]);
 
     return;
@@ -142,7 +144,8 @@ function remove(interaction) {
   saveJSON(reminders, REMINDERS_JSON_PATH);
 
   sendMessage(interaction, interaction.reply, [
-    `予定を削除しました。現在の件数: ${reminders.length}件`,
+    "✅⠀予定を削除しました。",
+    `⠀⠀⠀**現在の件数:** ${reminders.length}件`,
   ]);
   updateActivity(reminders);
 }
@@ -150,7 +153,9 @@ function remove(interaction) {
 function clear(interaction) {
   saveJSON([], REMINDERS_JSON_PATH);
 
-  sendMessage(interaction, interaction.reply, ["すべての予定を削除しました。"]);
+  sendMessage(interaction, interaction.reply, [
+    "✅⠀すべての予定を削除しました。",
+  ]);
   updateActivity([]);
 }
 
@@ -159,7 +164,7 @@ function list(interaction) {
 
   if (data.length === 0) {
     sendMessage(interaction, interaction.reply, [
-      "登録されている予定はありません。",
+      "🪦⠀登録されている予定はありません。",
     ]);
   }
 
@@ -171,14 +176,15 @@ function list(interaction) {
     .join("\n");
 
   sendMessage(interaction, interaction.reply, [
-    "**現在の予定リスト**",
-    `\`\`\`\n${listText}\n\`\`\``,
+    "✅⠀現在の予定リスト:",
+    `⠀⠀⠀\`\`\`\n${listText}\n\`\`\``,
   ]);
 }
 
 function help(interaction) {
   sendMessage(interaction, interaction.reply, [
-    "コマンド一覧: /add, /list, /remove, /clear, /help",
+    "🧭⠀コマンド一覧:",
+    "⠀⠀⠀/add, /remove, /clear, /list, /help",
   ]);
 }
 
@@ -229,19 +235,19 @@ client.once(Events.ClientReady, async () => {
       if (delta === 0) {
         // 時間になったら通知
         sendMessage(channel, channel.send, [
-          `${reminder.name}: 時間になりました！`,
+          `🔔 ${reminder.name}: 時間になりました！`,
         ]);
       } else if (delta >= 1440 && delta % 1440 === 0) {
         // 24時間前までは1日おきに通知
         const days = Math.floor(delta / 1440);
         sendMessage(channel, channel.send, [
-          `${reminder.name}: 残り${days}日です。`,
+          `🔔 ${reminder.name}: 残り${days}日です。`,
         ]);
       } else if (delta < 1440 && delta % 720 === 0) {
         // 24時間を切ったら12時間おきに通知
         const hours = Math.floor(delta / 60);
         sendMessage(channel, channel.send, [
-          `${reminder.name}: 残り${hours}時間です。`,
+          `🔔 ${reminder.name}: 残り${hours}時間です。`,
         ]);
       }
     }
