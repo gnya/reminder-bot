@@ -7,8 +7,11 @@ const {
   ApplicationCommandOptionType,
 } = require("discord.js");
 const fs = require("fs");
+const { type } = require("os");
 const path = require("path");
-const JSON_PATH = path.join(__dirname, "reminders.json");
+
+const COMMANDS_JSON_PATH = path.join(__dirname, "commands.json");
+const REMINDERS_JSON_PATH = path.join(__dirname, "reminders.json");
 
 const client = new Client({
   intents: [
@@ -19,58 +22,109 @@ const client = new Client({
 });
 
 // JSONファイルを読み込む関数
-function loadReminders() {
+function loadJSON(filepath) {
   try {
-    const data = fs.readFileSync(JSON_PATH, "utf8");
-    console.log(`${data} を読み込みました。`);
-    return JSON.parse(data);
+    const text = fs.readFileSync(filepath, "utf8");
+
+    return JSON.parse(text);
   } catch (err) {
+    console.error("JSONファイルの読み込みに失敗しました:", err);
+
     return [];
   }
 }
 
-// JSONファイルに保存する関数
-function saveReminders(reminders) {
-  fs.writeFileSync(JSON_PATH, JSON.stringify(reminders, null, 2));
-  // 変数名を reminders に修正
-  console.log(`${JSON.stringify(reminders)} を登録しました。`);
+// JSONファイルを書き出す関数
+function saveJSON(data, filepath) {
+  try {
+    const text = JSON.stringify(data, null, 2);
+
+    fs.writeFileSync(filepath, text);
+  } catch (err) {
+    console.error("JSONファイルの書き出しに失敗しました:", err);
+  }
 }
 
 // アクティビティの表示を更新する関数
-function updateActivity(currentData) {
-  client.user.setActivity(`${currentData.length}件の予定をリマインド中`, {
+function updateActivity(reminders) {
+  client.user.setActivity(`${reminders.length}件の予定をリマインド中`, {
     type: ActivityType.Watching,
   });
 }
 
 function add(interaction) {
-  const currentData = loadReminders();
-  const newEntry = {
-    id: Date.now(),
-    content: "追加テスト", // 本来は interaction.options から取得します
-    time: new Date().toLocaleString(),
-  };
+  const name = interaction.options.getString("name");
+  const date = Date.parse(interaction.options.getString("date"));
 
-  currentData.push(newEntry);
-  saveReminders(currentData);
+  if (isNaN(date)) {
+    interaction.reply("予定の追加に失敗しました: 入力された日付が無効です");
 
-  interaction.reply(
-    `データを追加しました。現在の件数: ${currentData.length}件`,
-  );
+    return;
+  } else if (date <= Date.now()) {
+    interaction.reply("予定の追加に失敗しました: 未来の日付を入力してください");
 
-  updateActivity(currentData);
+    return;
+  }
+
+  const reminders = loadJSON(REMINDERS_JSON_PATH);
+
+  reminders.push({ id: reminders.length, name: name, date: date });
+
+  saveJSON(reminders, REMINDERS_JSON_PATH);
+
+  interaction.reply(`予定を追加しました。現在の件数: ${reminders.length}件`);
+  updateActivity(reminders);
 }
 
 function remove(interaction) {
-  updateActivity(currentData);
+  const name = interaction.options.getString("name");
+  const id = interaction.options.getNumber("id");
+
+  if ((name == null && id == null) || (name != null && id != null)) {
+    interaction.reply(
+      "予定の削除に失敗しました: 名前かIDのどちらかを指定してください",
+    );
+
+    return;
+  }
+
+  const reminders = loadJSON(REMINDERS_JSON_PATH);
+  const index = reminders.findIndex((r) => r.name === name || r.id === id);
+
+  if (index <= 0) {
+    interaction.reply(
+      "予定の削除に失敗しました: 指定された予定が存在しませんでした",
+    );
+
+    return;
+  }
+
+  reminders.splice(index, 1);
+
+  saveJSON(reminders, REMINDERS_JSON_PATH);
+
+  interaction.reply(`予定を削除しました。現在の件数: ${reminders.length}件`);
+  updateActivity(reminders);
+}
+
+function clear(interaction) {
+  saveJSON([], REMINDERS_JSON_PATH);
+
+  interaction.reply("すべての予定を削除しました。");
+  updateActivity([]);
+}
+
+function update(interaction) {
+  // TODO 実装予定
 }
 
 function list(interaction) {
-  const data = loadReminders();
-  // 配列が空の場合のケア
+  const data = loadJSON(REMINDERS_JSON_PATH);
+
   if (data.length === 0) {
-    return interaction.reply("登録されているリマインドはありません。");
+    interaction.reply("登録されている予定はありません。");
   }
+
   interaction.reply(
     `現在のリスト:\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``,
   );
@@ -84,74 +138,37 @@ function help(interaction) {
 client.once(Events.ClientReady, async () => {
   const channelId = process.env.TARGET_CHANNEL_ID;
 
+  // TODO 他の環境変数についても存在確認をする？
   if (!channelId) {
     console.error("エラー: TARGET_CHANNEL_ID が設定されていません。");
+
     return;
   }
 
   try {
     // チャンネルIDからチャンネルを取得
     const channel = await client.channels.fetch(channelId);
+
     if (!channel) {
       console.error(
         "エラー: 指定されたチャンネルが見つかりません。Botがそのチャンネルを見る権限があるか確認してください。",
       );
+
       return;
     }
-  } catch (error) {
-    console.error("起動時にエラーが発生しました:", error);
+
+    // TODO channelを使ってなにかする
+  } catch (err) {
+    console.error("起動時にエラーが発生しました:", err);
   }
 
   // コマンドを登録する
   client.application.commands.set(
-    [
-      {
-        name: "add",
-        description: "予定を追加します",
-        options: [
-          {
-            name: "name",
-            description: "予定の名前",
-            type: ApplicationCommandOptionType.String,
-            required: true,
-          },
-          {
-            name: "date",
-            description: "予定の日付",
-            type: ApplicationCommandOptionType.String,
-            required: true,
-          },
-        ],
-      },
-      {
-        name: "remove",
-        description: "予定を削除します",
-        options: [
-          {
-            name: "name",
-            description: "予定の名前",
-            type: ApplicationCommandOptionType.String,
-            required: true,
-          },
-        ],
-      },
-      {
-        name: "update",
-        description: "予定を更新します",
-      },
-      {
-        name: "list",
-        description: "予定の一覧を表示します",
-      },
-      {
-        name: "help",
-        description: "このBotのヘルプを表示します",
-      },
-    ],
+    loadJSON(COMMANDS_JSON_PATH),
     process.env.DISCORD_GUILD_ID,
   );
 
-  updateActivity(loadReminders());
+  updateActivity(loadJSON(REMINDERS_JSON_PATH));
 });
 
 // コマンドを受け取ったときに実行される処理
@@ -168,6 +185,9 @@ client.on(Events.InteractionCreate, (interaction) => {
       break;
     case "remove":
       remove(interaction);
+      break;
+    case "clear":
+      clear(interaction);
       break;
     case "update":
       update(interaction);

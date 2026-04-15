@@ -1,0 +1,54 @@
+[
+  {
+    "name": "add",
+    "description": "予定を追加します",
+    "options": [
+      {
+        "name": "name",
+        "description": "予定の名前",
+        "type": 3,
+        "required": true
+      },
+      {
+        "name": "date",
+        "description": "予定の日付",
+        "type": 3,
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "remove",
+    "description": "予定を削除します",
+    "options": [
+      {
+        "name": "name",
+        "description": "予定の名前",
+        "type": 3,
+        "required": false
+      },
+      {
+        "name": "id",
+        "description": "予定のID",
+        "type": 10,
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "clear",
+    "description": "すべての予定を削除します"
+  },
+  {
+    "name": "update",
+    "description": "予定を更新します"
+  },
+  {
+    "name": "list",
+    "description": "予定の一覧を表示します"
+  },
+  {
+    "name": "help",
+    "description": "このBotのヘルプを表示します"
+  }
+]
