@@ -67,8 +67,9 @@ function add(interaction) {
   }
 
   const reminders = loadJSON(REMINDERS_JSON_PATH);
+  const id = (reminders[reminders.length - 1]?.id || 0) + 1;
 
-  reminders.push({ id: reminders.length, name: name, date: date });
+  reminders.push({ id: id, name: name, date: date });
 
   saveJSON(reminders, REMINDERS_JSON_PATH);
 
@@ -91,7 +92,7 @@ function remove(interaction) {
   const reminders = loadJSON(REMINDERS_JSON_PATH);
   const index = reminders.findIndex((r) => r.name === name || r.id === id);
 
-  if (index <= 0) {
+  if (index < 0) {
     interaction.reply(
       "予定の削除に失敗しました: 指定された予定が存在しませんでした",
     );
