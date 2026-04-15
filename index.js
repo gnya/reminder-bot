@@ -194,23 +194,28 @@ client.once(Events.ClientReady, async () => {
     const reminders = loadJSON(REMINDERS_JSON_PATH);
     const now = new Date();
 
-    // TODO 24時間前までは1日おきに通知
-    // TODO 24時間を切ったら12時間おきに通知
-    for (reminder of reminders) {
+    for (const reminder of reminders) {
       const delta = Math.round((reminder.date - now.getTime()) / (60 * 1000));
-
-      console.log(`test: ${reminder.name} ${delta}`);
 
       // 既に時刻を過ぎている場合は無視する
       if (delta < 0) {
-        return;
+        continue;
       }
 
-      // ひとまず10分刻みで通知するようにする
+      // テスト用コード
+      // console.log(`test: ${reminder.name} ${delta}`);
+
       if (delta === 0) {
+        // 時間になったら通知
         channel.send(`${reminder.name}: 時間になりました！`);
-      } else if (delta % 10 === 0) {
-        channel.send(`${reminder.name}: 残り${delta}分です。`);
+      } else if (delta >= 1440 && delta % 1440 === 0) {
+        // 24時間前までは1日おきに通知
+        const days = Math.floor(delta / 1440);
+        channel.send(`${reminder.name}: 残り${days}日です。`);
+      } else if (delta < 1440 && delta % 720 === 0) {
+        // 24時間を切ったら12時間おきに通知
+        const hours = Math.floor(delta / 60);
+        channel.send(`${reminder.name}: 残り${hours}時間です。`);
       }
     }
   });
